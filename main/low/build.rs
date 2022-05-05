@@ -166,6 +166,7 @@ mod codegen {
                 .whitelist_var("TRANSPARENT")
                 .whitelist_var("OPAQUE")
                 .whitelist_type("HINSTANCE")
+                .whitelist_type("reaper_csurf_reg_t")
                 .whitelist_type("reaper_plugin_info_t")
                 .whitelist_type("gaccel_register_t")
                 .whitelist_type("accelerator_register_t")

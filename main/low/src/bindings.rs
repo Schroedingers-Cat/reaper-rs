@@ -1305,6 +1305,31 @@ pub mod root {
             unsafe { ::std::mem::zeroed() }
         }
     }
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+    pub struct reaper_csurf_reg_t {
+        pub type_string: *const ::std::os::raw::c_char,
+        pub desc_string: *const ::std::os::raw::c_char,
+        pub create: ::std::option::Option<
+            unsafe extern "C" fn(
+                type_string: *const ::std::os::raw::c_char,
+                configString: *const ::std::os::raw::c_char,
+                errStats: *mut ::std::os::raw::c_int,
+            ) -> *mut root::IReaperControlSurface,
+        >,
+        pub ShowConfig: ::std::option::Option<
+            unsafe extern "C" fn(
+                type_string: *const ::std::os::raw::c_char,
+                parent: root::HWND,
+                initConfigString: *const ::std::os::raw::c_char,
+            ) -> root::HWND,
+        >,
+    }
+    impl Default for reaper_csurf_reg_t {
+        fn default() -> Self {
+            unsafe { ::std::mem::zeroed() }
+        }
+    }
     pub mod reaper_functions {
         #[allow(unused_imports)]
         use self::super::super::root;

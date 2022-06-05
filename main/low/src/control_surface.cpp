@@ -8,11 +8,13 @@ namespace reaper_control_surface {
   private:
     // This pointer points to a Box in Rust which holds an IReaperControlSurface trait implementation.
     void* callback_target_;
-  public:
-    CppToRustControlSurface(void* callback_target) : callback_target_(callback_target) {
-    }
+    reaper_csurf_reg_t  csurf_registration;
 
-    virtual const char* GetTypeString() {
+  public:
+    CppToRustControlSurface(void* callback_target) : callback_target_(callback_target) {}
+    CppToRustControlSurface(void* callback_target, reaper_csurf_reg_t csurf_reg) : callback_target_(callback_target), csurf_registration(csurf_reg) {}
+
+      virtual const char* GetTypeString() {
       return ::reaper_control_surface::cpp_to_rust_IReaperControlSurface_GetTypeString(this->callback_target_);
     }
     virtual const char* GetDescString() {
@@ -79,6 +81,10 @@ namespace reaper_control_surface {
 
   IReaperControlSurface* create_cpp_to_rust_control_surface(void* callback_target) {
     return new CppToRustControlSurface(callback_target);
+  }
+
+  IReaperControlSurface* create_cpp_to_rust_real_control_surface(void* callback_target, reaper_csurf_reg_t csurf_reg) {
+    return new CppToRustControlSurface(callback_target, csurf_reg);
   }
 
   void delete_control_surface(IReaperControlSurface* surface) {

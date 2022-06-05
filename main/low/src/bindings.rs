@@ -11189,6 +11189,12 @@ pub mod root {
             ) -> *mut root::IReaperControlSurface;
         }
         extern "C" {
+            pub fn create_cpp_to_rust_real_control_surface(
+                callback_target: *mut ::std::os::raw::c_void,
+                csurf_reg: root::reaper_csurf_reg_t,
+            ) -> *mut root::IReaperControlSurface;
+        }
+        extern "C" {
             pub fn delete_control_surface(surface: *mut root::IReaperControlSurface);
         }
         extern "C" {

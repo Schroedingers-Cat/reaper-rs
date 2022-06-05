@@ -1,8 +1,8 @@
 use std::ptr::NonNull;
 
 use reaper_low::{
-    create_cpp_to_rust_control_surface, delete_cpp_control_surface, raw, IReaperControlSurface,
-    PluginContext,
+    create_cpp_to_rust_control_surface, create_cpp_to_rust_real_control_surface,
+    delete_cpp_control_surface, raw, IReaperControlSurface, PluginContext,
 };
 
 use crate::keeper::{Keeper, SharedKeeper};
@@ -18,10 +18,11 @@ use crate::{
     ReaperString, ReaperStringArg, RegistrationHandle, RegistrationObject, ToggleAction,
     TranslateAccel,
 };
-use reaper_low::raw::audio_hook_register_t;
+use reaper_low::raw::{audio_hook_register_t, reaper_csurf_reg_t};
 
 use enumflags2::BitFlags;
 use std::collections::{HashMap, HashSet};
+use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
 use std::sync::Arc;
 
@@ -903,8 +904,15 @@ impl ReaperSession {
         // Create the C++ counterpart surface (we need to box the Rust side twice in order to obtain
         // a thin pointer for passing it to C++ as callback target).
         let double_boxed_low_cs: Box<Box<dyn IReaperControlSurface>> = Box::new(Box::new(low_cs));
-        let cpp_cs =
-            unsafe { create_cpp_to_rust_control_surface(double_boxed_low_cs.as_ref().into()) };
+        let csurf_reg = reaper_csurf_reg_t {
+            type_string: CString::new("ControllerType").unwrap().as_ptr(),
+            desc_string: CString::new("Description").unwrap().as_ptr(),
+            create: create_cpp_to_rust_control_surface(double_boxed_low_cs.as_ref().into()),
+            ShowConfig: (),
+        };
+        let cpp_cs = unsafe {
+            create_cpp_to_rust_real_control_surface(double_boxed_low_cs.as_ref().into(), csurf_reg)
+        };
         // Store the low-level Rust control surface in memory. Although we keep it here,
         // conceptually it's owned by REAPER, so we should not access it while being registered.
         let handle = RegistrationHandle::new(control_surface_thin_ptr, cpp_cs.cast());
@@ -958,38 +966,6 @@ impl ReaperSession {
         // Unregister the C++ control surface from REAPER
         let cpp_cs_ptr = handle.reaper_ptr().cast();
         self.plugin_register_remove(RegistrationObject::CsurfInst(cpp_cs_ptr));
-        // Remove the C++ counterpart surface
-        delete_cpp_control_surface(cpp_cs_ptr);
-        // Reconstruct the initial value for handing ownership back to the consumer
-        let low_cs = double_boxed_low_cs
-            .into_any()
-            .downcast::<ControlSurfaceAdapter>()
-            .ok()?;
-        let dyn_control_surface = low_cs.into_delegate();
-        // We are not interested in the fat pointer (Box<dyn ControlSurface>) anymore.
-        // By calling leak(), we make the pointer go away but prevent Rust from
-        // dropping its content.
-        Box::leak(dyn_control_surface);
-        // Here we pick up the content again and treat it as a Box - but this
-        // time not a trait object box (Box<dyn ControlSurface> = fat pointer) but a
-        // normal box (Box<T> = thin pointer) ... original type restored.
-        let control_surface = handle.restore_original();
-        Some(control_surface)
-    }
-
-    #[must_use]
-    pub unsafe fn plugin_register_remove_csurf<T>(
-        &mut self,
-        handle: RegistrationHandle<T>,
-    ) -> Option<Box<T>>
-    where
-        T: ControlSurface,
-    {
-        // Take the low-level Rust control surface out of its storage
-        let double_boxed_low_cs = self.csurf_insts.remove(&handle.reaper_ptr())?;
-        // Unregister the C++ control surface from REAPER
-        let cpp_cs_ptr = handle.reaper_ptr().cast();
-        self.plugin_register_remove(RegistrationObject::Csurf(cpp_cs_ptr));
         // Remove the C++ counterpart surface
         delete_cpp_control_surface(cpp_cs_ptr);
         // Reconstruct the initial value for handing ownership back to the consumer

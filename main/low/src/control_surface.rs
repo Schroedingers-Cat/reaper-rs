@@ -4,6 +4,7 @@
 use super::{firewall, raw::MediaTrack};
 use crate::raw;
 
+use crate::raw::reaper_csurf_reg_t;
 use downcast_rs::Downcast;
 use std::fmt::Debug;
 use std::os::raw::c_void;
@@ -168,6 +169,18 @@ pub unsafe fn create_cpp_to_rust_control_surface(
     let instance =
         crate::bindings::root::reaper_control_surface::create_cpp_to_rust_control_surface(
             callback_target.as_ptr() as *mut c_void,
+        );
+    NonNull::new_unchecked(instance)
+}
+
+pub unsafe fn create_cpp_to_rust_real_control_surface(
+    callback_target: NonNull<Box<dyn IReaperControlSurface>>,
+    csurf_reg: reaper_csurf_reg_t,
+) -> NonNull<raw::IReaperControlSurface> {
+    let instance =
+        crate::bindings::root::reaper_control_surface::create_cpp_to_rust_real_control_surface(
+            callback_target.as_ptr() as *mut c_void,
+            csurf_reg,
         );
     NonNull::new_unchecked(instance)
 }

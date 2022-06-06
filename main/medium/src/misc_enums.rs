@@ -683,7 +683,7 @@ pub enum RegistrationObject<'a> {
     /// (IReaperControlSurface*)instance
     /// ```
     CsurfInst(NonNull<raw::IReaperControlSurface>),
-    Csurf(NonNull<raw::IReaperControlSurface>),
+    Csurf(NonNull<raw::reaper_csurf_reg_t>),
     /// If a variant is missing in this enum, you can use this custom one as a resort.
     ///
     /// Use [`custom()`] to create this variant.

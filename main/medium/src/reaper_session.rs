@@ -905,13 +905,16 @@ impl ReaperSession {
         let double_boxed_low_cs: Box<Box<dyn IReaperControlSurface>> = Box::new(Box::new(low_cs));
         let cpp_cs =
             unsafe { create_cpp_to_rust_control_surface(double_boxed_low_cs.as_ref().into()) };
+
+        // TODO: we need to make the above call a function pointer into the csurf_reg_t!
         // Store the low-level Rust control surface in memory. Although we keep it here,
         // conceptually it's owned by REAPER, so we should not access it while being registered.
         let handle = RegistrationHandle::new(control_surface_thin_ptr, cpp_cs.cast());
         self.csurf_insts
             .insert(handle.reaper_ptr(), double_boxed_low_cs);
         // Register the C++ control surface at REAPER
-        unsafe { self.plugin_register_add(RegistrationObject::Csurf(cpp_cs))? };
+        // TODO: Create reaper_csurf_reg_t here
+        // unsafe { self.plugin_register_add(RegistrationObject::Csurf(cpp_cs))? };
         // Return a handle which the consumer can use to unregister
         Ok(handle)
     }
@@ -991,7 +994,8 @@ impl ReaperSession {
         let cpp_cs_ptr = handle.reaper_ptr().cast();
         self.plugin_register_remove(RegistrationObject::Csurf(cpp_cs_ptr));
         // Remove the C++ counterpart surface
-        delete_cpp_control_surface(cpp_cs_ptr);
+        // TODO: Handle reaper_csurf_reg_t type
+        // delete_cpp_control_surface(cpp_cs_ptr);
         // Reconstruct the initial value for handing ownership back to the consumer
         let low_cs = double_boxed_low_cs
             .into_any()

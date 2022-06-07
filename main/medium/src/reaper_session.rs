@@ -18,8 +18,9 @@ use crate::{
     ReaperString, ReaperStringArg, RegistrationHandle, RegistrationObject, ToggleAction,
     TranslateAccel,
 };
-use reaper_low::raw::audio_hook_register_t;
+use reaper_low::raw::{audio_hook_register_t, reaper_csurf_reg_t};
 
+use c_str_macro::c_str;
 use enumflags2::BitFlags;
 use std::collections::{HashMap, HashSet};
 use std::os::raw::{c_char, c_void};
@@ -907,6 +908,12 @@ impl ReaperSession {
             unsafe { create_cpp_to_rust_control_surface(double_boxed_low_cs.as_ref().into()) };
 
         // TODO: we need to make the above call a function pointer into the csurf_reg_t!
+        let real_control_surface = reaper_csurf_reg_t {
+            type_string: c_str!("Type").as_ptr(),
+            desc_string: c_str!("Description").as_ptr(),
+            create: None,
+            ShowConfig: None,
+        };
         // Store the low-level Rust control surface in memory. Although we keep it here,
         // conceptually it's owned by REAPER, so we should not access it while being registered.
         let handle = RegistrationHandle::new(control_surface_thin_ptr, cpp_cs.cast());

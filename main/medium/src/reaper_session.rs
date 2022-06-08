@@ -1,4 +1,4 @@
-use std::ptr::NonNull;
+use std::ptr::{null, NonNull};
 
 use reaper_low::{
     create_cpp_to_rust_control_surface, delete_cpp_control_surface, raw, IReaperControlSurface,
@@ -25,6 +25,16 @@ use enumflags2::BitFlags;
 use std::collections::{HashMap, HashSet};
 use std::os::raw::{c_char, c_void};
 use std::sync::Arc;
+// just a quick hack to make static external calls creating a control surface possible
+static mut reaper_control_surface_hack: Box<dyn IReaperControlSurface> = Box::new(null());
+
+extern "C" fn create_real_control_surface(
+    type_string: *const ::std::os::raw::c_char,
+    configString: *const ::std::os::raw::c_char,
+    errStats: *mut ::std::os::raw::c_int,
+) -> dyn IReaperControlSurface {
+    unsafe{reaper_control_surface_hack.as_mut()}
+}
 
 /// This is the main hub for accessing medium-level API functions.
 ///
@@ -906,12 +916,12 @@ impl ReaperSession {
         let double_boxed_low_cs: Box<Box<dyn IReaperControlSurface>> = Box::new(Box::new(low_cs));
         let cpp_cs =
             unsafe { create_cpp_to_rust_control_surface(double_boxed_low_cs.as_ref().into()) };
-
+        unsafe { reaper_control_surface_hack = Box::new(cpp_cs.as_ptr()) };
         // TODO: we need to make the above call a function pointer into the csurf_reg_t!
         let real_control_surface = reaper_csurf_reg_t {
             type_string: c_str!("Type").as_ptr(),
             desc_string: c_str!("Description").as_ptr(),
-            create: None,
+            create: Some(create_real_control_surface),
             ShowConfig: None,
         };
         // Store the low-level Rust control surface in memory. Although we keep it here,
@@ -920,9 +930,9 @@ impl ReaperSession {
         self.csurf_insts
             .insert(handle.reaper_ptr(), double_boxed_low_cs);
         // Register the C++ control surface at REAPER
-        // TODO: Create reaper_csurf_reg_t here
         // unsafe { self.plugin_register_add(RegistrationObject::Csurf(cpp_cs))? };
         // Return a handle which the consumer can use to unregister
+        // TODO: What to do with this handle if REAPER is responsible for calling the create method?
         Ok(handle)
     }
 

@@ -26,14 +26,14 @@ use std::collections::{HashMap, HashSet};
 use std::os::raw::{c_char, c_void};
 use std::sync::Arc;
 // just a quick hack to make static external calls creating a control surface possible
-static mut reaper_control_surface_hack: Box<dyn IReaperControlSurface> = Box::new(null());
+static mut reaper_control_surface_hack: Box<IReaperControlSurface> = Box::new(null());
 
 extern "C" fn create_real_control_surface(
     type_string: *const ::std::os::raw::c_char,
     configString: *const ::std::os::raw::c_char,
     errStats: *mut ::std::os::raw::c_int,
-) -> dyn IReaperControlSurface {
-    unsafe{reaper_control_surface_hack.as_mut()}
+) -> IReaperControlSurface {
+    unsafe { reaper_control_surface_hack.as_ref() }
 }
 
 /// This is the main hub for accessing medium-level API functions.
@@ -916,7 +916,10 @@ impl ReaperSession {
         let double_boxed_low_cs: Box<Box<dyn IReaperControlSurface>> = Box::new(Box::new(low_cs));
         let cpp_cs =
             unsafe { create_cpp_to_rust_control_surface(double_boxed_low_cs.as_ref().into()) };
-        unsafe { reaper_control_surface_hack = Box::new(cpp_cs.as_ptr()) };
+        unsafe {
+            reaper_control_surface_hack = cpp_cs.into();
+        }
+
         // TODO: we need to make the above call a function pointer into the csurf_reg_t!
         let real_control_surface = reaper_csurf_reg_t {
             type_string: c_str!("Type").as_ptr(),

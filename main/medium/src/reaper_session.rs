@@ -20,7 +20,6 @@ use crate::{
 };
 use reaper_low::raw::{audio_hook_register_t, reaper_csurf_reg_t};
 
-use c_str_macro::c_str;
 use enumflags2::BitFlags;
 use std::collections::{HashMap, HashSet};
 use std::os::raw::{c_char, c_void};
@@ -902,6 +901,7 @@ impl ReaperSession {
     pub fn plugin_register_add_csurf<T>(
         &mut self,
         control_surface: Box<T>,
+        csurf_reg: Box<reaper_csurf_reg_t>,
     ) -> ReaperFunctionResult<RegistrationHandle<T>>
     where
         T: ControlSurface + 'static,
@@ -920,20 +920,13 @@ impl ReaperSession {
             reaper_control_surface_hack = cpp_cs.into();
         }
 
-        // TODO: we need to make the above call a function pointer into the csurf_reg_t!
-        let real_control_surface = reaper_csurf_reg_t {
-            type_string: c_str!("Type").as_ptr(),
-            desc_string: c_str!("Description").as_ptr(),
-            create: Some(create_real_control_surface),
-            ShowConfig: None,
-        };
         // Store the low-level Rust control surface in memory. Although we keep it here,
         // conceptually it's owned by REAPER, so we should not access it while being registered.
         let handle = RegistrationHandle::new(control_surface_thin_ptr, cpp_cs.cast());
         self.csurf_insts
             .insert(handle.reaper_ptr(), double_boxed_low_cs);
         // Register the C++ control surface at REAPER
-        // unsafe { self.plugin_register_add(RegistrationObject::Csurf(cpp_cs))? };
+        unsafe { self.plugin_register_add(RegistrationObject::Csurf(csurf_reg.as_ref().into()))? };
         // Return a handle which the consumer can use to unregister
         // TODO: What to do with this handle if REAPER is responsible for calling the create method?
         Ok(handle)

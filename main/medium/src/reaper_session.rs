@@ -1,4 +1,4 @@
-use std::ptr::{null, NonNull};
+use std::ptr::NonNull;
 
 use reaper_low::{
     create_cpp_to_rust_control_surface, delete_cpp_control_surface, raw, IReaperControlSurface,
@@ -22,10 +22,25 @@ use reaper_low::raw::{audio_hook_register_t, reaper_csurf_reg_t};
 
 use enumflags2::BitFlags;
 use std::collections::{HashMap, HashSet};
+use std::fmt::{Debug, Formatter};
 use std::os::raw::{c_char, c_void};
 use std::sync::Arc;
 // just a quick hack to make static external calls creating a control surface possible
-static mut reaper_control_surface_hack: Box<IReaperControlSurface> = Box::new(null());
+struct MyControlSurface;
+
+impl Debug for MyControlSurface {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl IReaperControlSurface for MyControlSurface {
+    fn SetTrackListChange(&self) {
+        println!("Tracks changed");
+    }
+}
+
+static mut reaper_control_surface_hack: Box<dyn IReaperControlSurface> = Box::new(MyControlSurface);
 
 extern "C" fn create_real_control_surface(
     type_string: *const ::std::os::raw::c_char,
@@ -917,7 +932,7 @@ impl ReaperSession {
         let cpp_cs =
             unsafe { create_cpp_to_rust_control_surface(double_boxed_low_cs.as_ref().into()) };
         unsafe {
-            reaper_control_surface_hack = cpp_cs.into();
+            reaper_control_surface_hack = Box::new( *cpp_cs.as_ptr());
         }
 
         // Store the low-level Rust control surface in memory. Although we keep it here,

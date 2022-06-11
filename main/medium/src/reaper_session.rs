@@ -32,8 +32,8 @@ extern "C" fn create_real_control_surface(
     type_string: *const ::std::os::raw::c_char,
     configString: *const ::std::os::raw::c_char,
     errStats: *mut ::std::os::raw::c_int,
-) -> IReaperControlSurface {
-    unsafe { reaper_control_surface_hack.as_ref() }
+) -> *mut dyn IReaperControlSurface {
+    unsafe { &mut *reaper_control_surface_hack }
 }
 
 /// This is the main hub for accessing medium-level API functions.

@@ -11,17 +11,13 @@ edition = "2021"
 categories = ["api-bindings", "multimedia", "multimedia::audio"]
 publish = false
 
-[features]
-# Activates measuring of REAPER function execution times.
-reaper-meter = ["metered", "reaper-medium/reaper-meter", "serde"]
-
 [dependencies]
 c_str_macro = "1.0.2"
 once_cell = "1.3.1"
 crossbeam-channel = "0.5"
 reaper-medium = { path = '../medium' }
 reaper-low = { path = '../low' }
-helgoboss-midi = { git = "https://github.com/Schroedingers-Cat/helgoboss-midi.git" }
+helgoboss-midi = "0.4.0"
 regex = "1.3.4"
 slog = "2.5.2"
 slog-stdlog = "4.1.0"
@@ -31,11 +27,11 @@ futures = "0.3"
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_yaml = "0.8"
 backtrace = "0.3"
-metered = { version = "0.8.0", optional = true }
 ref-cast = "1.0.6"
 # For relativizing to project path
 pathdiff = "0.2.0"
 enumflags2 = "0.7.4"
+either = "1.8.0"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["psapi", "processthreadsapi"] }

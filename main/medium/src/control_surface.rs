@@ -29,7 +29,7 @@ pub trait ControlSurface: Debug {
     ///
     /// Return `None` if this is a control surface behind the scenes.
     //
-    // We can't let this returns something owned because it would be gone as soon as the delegate
+    // We can't let this return something owned because it would be gone as soon as the delegate
     // control surface turns this into a pointer and returns. This method of `IReaperControlSurface`
     // and related ones are just designed to work that way.
     fn get_type_string(&self) -> Option<&ReaperStr> {
@@ -131,7 +131,9 @@ pub trait ControlSurface: Debug {
     /// Should flush the control states.
     fn reset_cached_vol_pan_states(&self) {}
 
-    /// Called when a track has been selected.
+    /// Called after multiple tracks have been selected (seems to be batched).
+    ///
+    /// Doesn't seem to be called though when using [`crate::Reaper::set_track_selected`].
     fn on_track_selection(&self, args: OnTrackSelectionArgs) {
         let _ = args;
     }
@@ -508,17 +510,20 @@ pub struct ExtSetBpmAndPlayRateArgs {
 /// [this list](https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes).
 ///
 /// You can find some frequently used predefined keys in [`mod_keys`](mod_keys/index.html).
+//
+// u16 because I encountered a much higher value than u8 could carry when entering a ^ on a
+// German keyboard on macOS (1034 or so).
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct VirtKey(pub(crate) u8);
+pub struct VirtKey(pub(crate) u16);
 
 impl VirtKey {
     /// Creates a virtual key.
-    pub const fn new(raw: u8) -> Self {
+    pub const fn new(raw: u16) -> Self {
         Self(raw)
     }
 
     /// Returns the wrapped value.
-    pub const fn get(self) -> u8 {
+    pub const fn get(self) -> u16 {
         self.0
     }
 }

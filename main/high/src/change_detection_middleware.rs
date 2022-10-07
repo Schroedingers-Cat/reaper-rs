@@ -7,8 +7,8 @@ use reaper_medium::{
     reaper_str, AutomationMode, Bpm, ExtSetFxParamArgs, GlobalAutomationModeOverride,
     InputMonitoringMode, MediaTrack, Pan, PanMode, PlayState, PlaybackSpeedFactor, ReaProject,
     ReaperNormalizedFxParamValue, ReaperPanValue, ReaperStr, ReaperVersion, ReaperVolumeValue,
-    TrackAttributeKey, TrackFxChainType, TrackLocation, TrackSendCategory, TrackSendDirection,
-    VersionDependentFxLocation, VersionDependentTrackFxLocation,
+    RecordingInput, TrackAttributeKey, TrackFxChainType, TrackLocation, TrackSendCategory,
+    TrackSendDirection, VersionDependentFxLocation, VersionDependentTrackFxLocation,
 };
 use std::cell::{Cell, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
@@ -340,10 +340,13 @@ impl ChangeDetectionMiddleware {
                         as i32
                 };
                 if td.recinput != recinput {
+                    let old = td.recinput;
                     td.recinput = recinput;
                     let track = Track::new(args.track, None);
                     handle_change(ChangeEvent::TrackInputChanged(TrackInputChangedEvent {
                         track,
+                        old_value: RecordingInput::from_raw(old),
+                        new_value: RecordingInput::from_raw(recinput)
                     }));
                 }
             }
@@ -882,8 +885,9 @@ impl ChangeDetectionMiddleware {
             {
                 true
             } else {
-                let track = project.track_by_guid(&data.guid);
-                handle_change(ChangeEvent::TrackRemoved(TrackRemovedEvent { track }));
+                if let Ok(track) = project.track_by_guid(&data.guid) {
+                    handle_change(ChangeEvent::TrackRemoved(TrackRemovedEvent { track }));
+                }
                 false
             }
         });
@@ -895,7 +899,7 @@ impl ChangeDetectionMiddleware {
         track_datas: &mut TrackDataMap,
         mut handle_change: impl FnMut(ChangeEvent),
     ) {
-        for t in std::iter::once(project.master_track()).chain(project.tracks()) {
+        for t in project.master_track().into_iter().chain(project.tracks()) {
             let mt = t.raw();
             track_datas.entry(mt).or_insert_with(|| {
                 let func = Reaper::get().medium_reaper();
@@ -1227,6 +1231,61 @@ pub enum ChangeEvent {
     BookmarksChanged(BookmarksChangedEvent),
 }
 
+impl ChangeEvent {
+    /// Checks if the object (project, track, FX, etc.) to which this change event refers is
+    /// still valid.
+    ///
+    /// Right at the moment the control surface notifies about a change, the event should always
+    /// be valid! We don't question that. But we turn those callback method invocations into
+    /// `ChangeEvent` values. And such values lend themselves for being kept around a bit until
+    /// being processed. We actually do that in ReaLearn to be able to process them safely in a
+    /// mutable context in the next main loop cycle.
+    ///
+    /// The problem is: At that moment they could already be invalid, for example because the
+    /// refered object might have been deleted in the meantime. In this case, we should check that!
+    pub fn is_still_valid(&self) -> bool {
+        match self {
+            ChangeEvent::ProjectSwitched(evt) => evt.new_project.is_available(),
+            ChangeEvent::TrackVolumeChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackPanChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackRouteVolumeChanged(evt) => evt.route.is_available(),
+            ChangeEvent::TrackRoutePanChanged(evt) => evt.route.is_available(),
+            ChangeEvent::TrackAdded(evt) => evt.track.is_available(),
+            ChangeEvent::TrackRemoved(_) => true,
+            ChangeEvent::TracksReordered(evt) => evt.project.is_available(),
+            ChangeEvent::ReceiveCountChanged(evt) => evt.track.is_available(),
+            ChangeEvent::HardwareOutputSendCountChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackSendCountChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackNameChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackInputChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackInputMonitoringChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackArmChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackMuteChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackSoloChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackSelectedChanged(evt) => evt.track.is_available(),
+            ChangeEvent::TrackAutomationModeChanged(evt) => evt.track.is_available(),
+            ChangeEvent::FxAdded(evt) => evt.fx.is_available(),
+            ChangeEvent::FxRemoved(_) => true,
+            ChangeEvent::FxEnabledChanged(evt) => evt.fx.is_available(),
+            ChangeEvent::FxOpened(evt) => evt.fx.is_available(),
+            ChangeEvent::FxClosed(evt) => evt.fx.is_available(),
+            ChangeEvent::FxFocused(evt) => {
+                evt.fx.as_ref().map(|fx| fx.is_available()).unwrap_or(true)
+            }
+            ChangeEvent::FxReordered(evt) => evt.track.is_available(),
+            ChangeEvent::FxParameterValueChanged(evt) => evt.parameter.is_available(),
+            ChangeEvent::FxPresetChanged(evt) => evt.fx.is_available(),
+            ChangeEvent::MasterTempoChanged(evt) => evt.project.is_available(),
+            ChangeEvent::MasterPlayrateChanged(evt) => evt.project.is_available(),
+            ChangeEvent::GlobalAutomationOverrideChanged(evt) => evt.project.is_available(),
+            ChangeEvent::PlayStateChanged(evt) => evt.project.is_available(),
+            ChangeEvent::RepeatStateChanged(evt) => evt.project.is_available(),
+            ChangeEvent::ProjectClosed(_) => true,
+            ChangeEvent::BookmarksChanged(evt) => evt.project.is_available(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ProjectSwitchedEvent {
     pub old_project: Project,
@@ -1315,6 +1374,8 @@ pub struct TrackNameChangedEvent {
 #[derive(Clone, Debug)]
 pub struct TrackInputChangedEvent {
     pub track: Track,
+    pub old_value: Option<RecordingInput>,
+    pub new_value: Option<RecordingInput>,
 }
 
 #[derive(Clone, Debug)]

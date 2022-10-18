@@ -683,6 +683,8 @@ pub enum RegistrationObject<'a> {
     /// (IReaperControlSurface*)instance
     /// ```
     CsurfInst(NonNull<raw::IReaperControlSurface>),
+    /// A real control surface.
+    Csurf(NonNull<raw::reaper_csurf_reg_t>),
     /// If a variant is missing in this enum, you can use this custom one as a resort.
     ///
     /// Use [`custom()`] to create this variant.
@@ -791,6 +793,10 @@ impl<'a> RegistrationObject<'a> {
             CsurfInst(inst) => PluginRegistration {
                 key: reaper_str!("csurf_inst").into(),
                 value: inst.as_ptr() as _,
+            },
+            Csurf(csurf_reg) => PluginRegistration {
+                key: reaper_str!("csurf").into(),
+                value: csurf_reg.as_ptr() as _,
             },
             Custom(key, value) => PluginRegistration {
                 key: key.into_owned().into(),

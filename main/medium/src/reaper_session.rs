@@ -2,7 +2,7 @@ use std::ptr::NonNull;
 
 use reaper_low::{
     create_cpp_to_rust_control_surface, delete_cpp_control_surface, raw, IReaperControlSurface,
-    PluginContext,
+    PluginContext, reaper_csurf_reg_t,
 };
 
 use crate::keeper::{Keeper, SharedKeeper};
@@ -81,12 +81,18 @@ pub struct ReaperSession {
     /// While in here, the audio hook is considered to be owned by REAPER, meaning that REAPER is
     /// supposed to have exclusive access to it.
     audio_hook_registers: Keeper<OwnedAudioHookRegister, raw::audio_hook_register_t>,
-    /// Provides a safe place in memory for each registered control surface.
+    /// Provides a safe place in memory for each registered hidden control surface.
     ///
     /// While in here, the control surface is considered to be owned by REAPER, meaning that REAPER
     /// is supposed to have exclusive access to it.
     #[allow(clippy::redundant_allocation)]
     csurf_insts: HashMap<NonNull<c_void>, Box<Box<dyn IReaperControlSurface>>>,
+    /// Provides a safe place in memory for each registered control surface.
+    ///
+    /// While in here, the control surface is considered to be owned by REAPER, meaning that REAPER
+    /// is supposed to have exclusive access to it.
+    #[allow(clippy::redundant_allocation)]
+    csurfs: HashMap<NonNull<c_void>, Box<Box<dyn reaper_csurf_reg_t>>>,
     /// Provides a safe place in memory for plug-in registration keys (e.g. "API_myfunction").
     ///
     /// Also used for keeping track of registrations so they can be unregistered automatically on
@@ -117,6 +123,7 @@ impl ReaperSession {
             api_defs: Default::default(),
             audio_hook_registers: Default::default(),
             csurf_insts: Default::default(),
+            csurfs: Default::default(),
             plugin_registrations: Default::default(),
             audio_hook_registrations: Default::default(),
             playing_preview_registers: Default::default(),

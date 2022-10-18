@@ -8,6 +8,7 @@ use downcast_rs::Downcast;
 use std::fmt::Debug;
 use std::os::raw::c_void;
 use std::ptr::{null, null_mut, NonNull};
+use crate::bindings::root;
 
 /// This is the Rust analog to the C++ virtual base class `IReaperControlSurface`.
 ///
@@ -106,6 +107,14 @@ pub trait IReaperControlSurface: Debug + Downcast {
 }
 
 downcast_rs::impl_downcast!(IReaperControlSurface);
+
+pub trait reaper_csurf_reg_t : Debug + Downcast {
+    unsafe fn create(&self, type_string: *const ::std::os::raw::c_char, configString: *const ::std::os::raw::c_char, errStats: *mut ::std::os::raw::c_int,) -> *mut dyn IReaperControlSurface;
+    fn ShowConfig(&self, type_string: *const ::std::os::raw::c_char, parent: root::HWND, initConfigString: *const ::std::os::raw::c_char,) -> root::HWND;
+}
+
+downcast_rs::impl_downcast!(reaper_csurf_reg_t);
+
 
 /// Creates an `IReaperControlSurface` object on C++ side and returns a pointer to it.
 ///
